@@ -6,6 +6,9 @@ GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
 GIT_TAG := $(shell git describe --exact-match --tags 2> /dev/null)
 GIT_LAST_TAG := $(shell git describe --abbrev=0 --tags 2> /dev/null)
 
+DOCKER_BRANCH := $(shell echo "$(GIT_BRANCH)" | sed 's:/:-:g')
+DOCKER_TAG := $(shell echo "$(GIT_TAG)" | sed 's:/:-:g')
+
 DATA_DIR := ./data
 
 HOST_KEY_DIR := $(DATA_DIR)/server
@@ -37,11 +40,11 @@ build:
 
 docker:
 	GOOS=linux GOARCH=amd64 $(MAKE) build
-	docker build -t $(DOCKER_IMAGE):$(GIT_BRANCH) .
-	if [[ ! -z "$(GIT_TAG)" ]]; then docker tag $(DOCKER_IMAGE):$(GIT_BRANCH) $(DOCKER_IMAGE):$(GIT_TAG); fi
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_BRANCH) .
+	if [[ ! -z "$(DOCKER_TAG)" ]]; then docker tag $(DOCKER_IMAGE):$(DOCKER_BRANCH) $(DOCKER_IMAGE):$(DOCKER_TAG); fi
 
 .PHONY: docker-push
 
 docker-push: docker
-	docker push $(DOCKER_IMAGE):$(GIT_BRANCH)
-	if [[ ! -z "$(GIT_TAG)" ]]; then docker push $(DOCKER_IMAGE):$(GIT_TAG); fi
+	docker push $(DOCKER_IMAGE):$(DOCKER_BRANCH)
+	if [[ ! -z "$(DOCKER_TAG)" ]]; then docker push $(DOCKER_IMAGE):$(DOCKER_TAG); fi
