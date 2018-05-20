@@ -1,6 +1,10 @@
+DOCKER_IMAGE := registry.gitlab.com/htdvisser/ssh-gateway
+
 DATE_TIME := $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
-COMMIT := $(shell git rev-parse HEAD)
-VERSION := $(shell git describe --abbrev=0 --tags)
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null)
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null)
+GIT_TAG := $(shell git describe --exact-match --tags 2> /dev/null)
+GIT_LAST_TAG := $(shell git describe --abbrev=0 --tags 2> /dev/null)
 
 DATA_DIR := ./data
 
@@ -22,4 +26,17 @@ host_keys: $(HOST_KEY_DIR)/ssh_host_dsa_key $(HOST_KEY_DIR)/ssh_host_ed25519_key
 .PHONY: build
 
 build:
-	go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) cmd/ssh-gateway/main.go
+	go build -ldflags "-X main.version=$(GIT_LAST_TAG) -X main.commit=$(GIT_COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) cmd/ssh-gateway/main.go
+
+.PHONY: docker
+
+docker:
+	GOOS=linux GOARCH=amd64 $(MAKE) build
+	docker build -t $(DOCKER_IMAGE):$(GIT_BRANCH) .
+	if [[ ! -z "$(GIT_TAG)" ]]; then docker tag $(DOCKER_IMAGE):$(GIT_BRANCH) $(DOCKER_IMAGE):$(GIT_TAG); fi
+
+.PHONY: docker-push
+
+docker-push: docker
+	docker push $(DOCKER_IMAGE):$(GIT_BRANCH)
+	if [[ ! -z "$(GIT_TAG)" ]]; then docker push $(DOCKER_IMAGE):$(GIT_TAG); fi
