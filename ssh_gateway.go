@@ -1,5 +1,5 @@
 // Package ssh implements the main logic for the ssh-gateway program.
-package ssh // import "github.com/htdvisser/ssh-gateway"
+package ssh // import "go.htdvisser.nl/ssh-gateway"
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/htdvisser/ssh-gateway/pkg/forward"
-	"github.com/htdvisser/ssh-gateway/pkg/log"
+	"go.htdvisser.nl/ssh-gateway/pkg/forward"
+	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"

@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/htdvisser/ssh-gateway/pkg/log"
+	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 )

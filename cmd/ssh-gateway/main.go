@@ -25,9 +25,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/htdvisser/ssh-gateway"
-	"github.com/htdvisser/ssh-gateway/pkg/log"
 	"github.com/urfave/cli"
+	"go.htdvisser.nl/ssh-gateway"
+	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

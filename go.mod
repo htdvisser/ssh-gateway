@@ -1,4 +1,4 @@
-module github.com/htdvisser/ssh-gateway
+module go.htdvisser.nl/ssh-gateway
 
 require (
 	github.com/urfave/cli v1.20.0
