@@ -23,10 +23,15 @@ $(HOST_KEY_DIR)/ssh_host_rsa_key:
 
 host_keys: $(HOST_KEY_DIR)/ssh_host_dsa_key $(HOST_KEY_DIR)/ssh_host_ed25519_key $(HOST_KEY_DIR)/ssh_host_ecdsa_key $(HOST_KEY_DIR)/ssh_host_rsa_key
 
+.PHONY: dev-deps
+
+dev-deps:
+	go get -u golang.org/x/vgo
+
 .PHONY: build
 
 build:
-	go build -ldflags "-X main.version=$(GIT_LAST_TAG) -X main.commit=$(GIT_COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) cmd/ssh-gateway/main.go
+	vgo build -ldflags "-X main.version=$(GIT_LAST_TAG) -X main.commit=$(GIT_COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) cmd/ssh-gateway/main.go
 
 .PHONY: docker
 
