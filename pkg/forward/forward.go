@@ -3,6 +3,7 @@ package forward
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 
@@ -11,8 +12,20 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+var (
+	errTargetMissing       = errors.New("target SSH Client missing")
+	errRequestsChanMissing = errors.New("requests chan missing")
+	errChannelsChanMissing = errors.New("channels chan missing")
+)
+
 // Requests forwards ssh requests
 func Requests(ctx context.Context, target *ssh.Client, requests <-chan *ssh.Request) error {
+	if target == nil {
+		return errTargetMissing
+	}
+	if requests == nil {
+		return errRequestsChanMissing
+	}
 	return forwardClientRequests(ctx, target, requests)
 }
 
@@ -102,8 +115,14 @@ func (c *channel) forwardChannelRequests(ctx context.Context, target ssh.Channel
 }
 
 // Channels forwards ssh channels
-func Channels(ctx context.Context, target *ssh.Client, requests <-chan ssh.NewChannel) error {
-	return forwardChannels(ctx, target, requests)
+func Channels(ctx context.Context, target *ssh.Client, channels <-chan ssh.NewChannel) error {
+	if target == nil {
+		return errTargetMissing
+	}
+	if channels == nil {
+		return errChannelsChanMissing
+	}
+	return forwardChannels(ctx, target, channels)
 }
 
 func forwardChannels(ctx context.Context, target *ssh.Client, channels <-chan ssh.NewChannel) error {
