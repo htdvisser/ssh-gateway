@@ -200,6 +200,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 				logger.Warn("Could not parse upstream identity file", zap.Error(err), zap.String("file", filepath.Base(identityFile)))
 				continue
 			}
+			logger.Debug("Add upstream identity", zap.String("file", identityFile))
 			upstream.PrivateKeys = append(upstream.PrivateKeys, signer)
 		}
 		if len(upstream.PrivateKeys) == 0 && len(gtw.identityKeys) > 0 {
