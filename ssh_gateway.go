@@ -207,7 +207,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		}
 	}
 	var hostKeyCallback ssh.HostKeyCallback
-	if hostKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "known_host*")); err == nil {
+	if hostKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "known_host*")); err == nil && len(hostKeyFiles) > 0 {
 		hostKeyCallback, err = knownhosts.New(hostKeyFiles...)
 		if err != nil {
 			logger.Error("Faild to load known hosts files", zap.Error(err))
