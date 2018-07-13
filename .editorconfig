@@ -17,6 +17,6 @@ max_line_length = 160
 [*.md]
 trim_trailing_whitespace = false
 
-[Makefile,*.make]
+[Makefile]
 indent_style = tab
 indent_size = 2
