@@ -215,8 +215,14 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		}
 	}
 
-	logger.Info("Connect to upstream")
-	sshTarget, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", upstream.Host, upstream.Port), &ssh.ClientConfig{
+	addr := fmt.Sprintf("%s:%d", upstream.Host, upstream.Port)
+
+	logger.Info(
+		"Connect to upstream",
+		zap.String("upstream_user", upstream.User),
+		zap.String("upstream_addr", addr),
+	)
+	sshTarget, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{
 		User:            upstream.User,
 		Auth:            upstream.AuthMethods(),
 		HostKeyCallback: hostKeyCallback,
