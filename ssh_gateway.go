@@ -213,6 +213,16 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		if err != nil {
 			logger.Error("Faild to load known hosts files", zap.Error(err))
 		}
+	} else {
+		logger.Warn("No known_hosts files, will generate...")
+		hostKeyCallback = func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			ioutil.WriteFile(
+				filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "known_host_generated"),
+				[]byte(knownhosts.Line([]string{hostname, remote.String()}, key)),
+				0644,
+			)
+			return nil
+		}
 	}
 
 	addr := fmt.Sprintf("%s:%d", upstream.Host, upstream.Port)
