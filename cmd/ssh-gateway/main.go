@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/urfave/cli"
 	"go.htdvisser.nl/ssh-gateway"
+	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -90,12 +92,21 @@ func Run(c *cli.Context) error {
 	}
 	ctx = log.NewContext(ctx, logger)
 
-	gtw := ssh.NewGateway(ctx, c.String("data"))
-	err := gtw.LoadConfig()
+	dataDir, err := filepath.Abs(c.String("data"))
+	if err != nil {
+		logger.Error("Could not find data dir", zap.Error(err))
+		return fmt.Errorf("Could not find data dir: %s", err)
+	}
+
+	gtw := ssh.NewGateway(ctx, dataDir)
+
+	err = gtw.LoadConfig()
 	if err != nil {
 		logger.Error("Could not load config", zap.Error(err))
 		return fmt.Errorf("Could not load config: %s", err)
 	}
+
+	gtw.RegisterCommand("list", cmd.ListUpstreams(dataDir))
 
 	var wg sync.WaitGroup
 	defer func() {
