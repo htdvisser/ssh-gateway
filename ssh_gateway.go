@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"time"
 
+	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/forward"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
@@ -43,7 +44,12 @@ func (c upstreamConfig) AuthMethods() (methods []ssh.AuthMethod) {
 
 // NewGateway instantiates a new SSH Gateway.
 func NewGateway(ctx context.Context, dataDir string) *Gateway {
-	return &Gateway{ctx: ctx, dataDir: dataDir}
+	return &Gateway{
+		ctx:               ctx,
+		dataDir:           dataDir,
+		commandUser:       "root",
+		commandDispatcher: make(cmd.Dispatcher),
+	}
 }
 
 // Gateway implements an SSH Gateway.
@@ -52,6 +58,14 @@ type Gateway struct {
 	dataDir      string
 	cfg          *ssh.ServerConfig
 	identityKeys []ssh.Signer
+
+	commandUser       string
+	commandDispatcher cmd.Dispatcher
+}
+
+// RegisterCommand registers a command to the SSH gateway.
+func (gtw *Gateway) RegisterCommand(name string, cmd cmd.Command) {
+	gtw.commandDispatcher[name] = cmd
 }
 
 var userRegexp = regexp.MustCompile("^[a-z0-9._-]+$")
@@ -157,12 +171,20 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	defer sshConn.Close()
 
 	logger = logger.With(
-		zap.String("upstream", sshConn.User()),
+		zap.String("user", sshConn.User()),
 		zap.String("pubkey", sshConn.Permissions.Extensions["pubkey-name"]),
 	)
 
 	logger.Info("Accept SSH conn", zap.String("pubkey-comment", sshConn.Permissions.Extensions["pubkey-comment"]))
 	defer logger.Info("Close SSH conn")
+
+	if sshConn.User() == gtw.commandUser && len(gtw.commandDispatcher) > 0 {
+		err = gtw.commandDispatcher.Dispatch(log.NewContext(gtw.ctx, logger), sshConn, sshChannels, sshRequests)
+		if err != nil {
+			logger.Warn("Could not execute command", zap.Error(err))
+		}
+		return
+	}
 
 	configBytes, err := ioutil.ReadFile(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "config.yml"))
 	if err != nil {
