@@ -53,7 +53,6 @@ type channel struct {
 	targetChannel  ssh.Channel
 	sourceRequests <-chan *ssh.Request
 	targetRequests <-chan *ssh.Request
-	isShell        bool
 }
 
 func (c *channel) handle(ctx context.Context) {
@@ -66,9 +65,8 @@ func (c *channel) handle(ctx context.Context) {
 	defer cancel()
 	go func() {
 		<-innerCtx.Done()
-		if ctx.Err() != nil && c.isShell {
-			logger.Warn("Notify shell")
-			c.sourceChannel.Write([]byte("\r\nWARNING: SSH Gateway is stopping.\r\n")) // nolint:gas
+		if ctx.Err() != nil {
+			logger.Warn("Channel is still active")
 		}
 	}()
 
@@ -113,9 +111,6 @@ func (c *channel) forwardChannelRequests(ctx context.Context, target ssh.Channel
 			}
 		}
 		log.FromContext(ctx).Debug("Forward channel request", zap.String("type", req.Type), zap.Bool("result", ok))
-		if req.Type == "shell" && ok {
-			c.isShell = true
-		}
 	}
 	return nil
 }
