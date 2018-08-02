@@ -91,18 +91,23 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 		if err != nil {
 			return nil, err
 		}
-		authorizedKey, comment, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
-		if err != nil {
-			return nil, err
-		}
-		if bytes.Equal(authorizedKey.Marshal(), marshaledPubKey) {
-			return &ssh.Permissions{
-				Extensions: map[string]string{
-					"pubkey-name":    filepath.Base(authorizedKeyFile),
-					"pubkey-comment": comment,
-					"pubkey-fp":      ssh.FingerprintSHA256(pubKey),
-				},
-			}, nil
+		for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
+			if len(authorizedKeyBytes) == 0 {
+				continue
+			}
+			authorizedKey, comment, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
+			if err != nil {
+				continue
+			}
+			if bytes.Equal(authorizedKey.Marshal(), marshaledPubKey) {
+				return &ssh.Permissions{
+					Extensions: map[string]string{
+						"pubkey-name":    filepath.Base(authorizedKeyFile),
+						"pubkey-comment": comment,
+						"pubkey-fp":      ssh.FingerprintSHA256(pubKey),
+					},
+				}, nil
+			}
 		}
 	}
 	return nil, errors.New("no match for pubKey")

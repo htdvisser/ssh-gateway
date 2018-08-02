@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -23,16 +24,21 @@ func ListUpstreams(dataDir string) Command {
 		for _, authorizedKeyFile := range authorizedKeyFiles {
 			authorizedKeyBytes, err := ioutil.ReadFile(authorizedKeyFile)
 			if err != nil {
-				return err
-			}
-			authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
-			if err != nil {
-				return err
-			}
-			if permissions.Extensions["pubkey-fp"] != ssh.FingerprintSHA256(authorizedKey) {
 				continue
 			}
-			upstreams = append(upstreams, filepath.Base(filepath.Dir(authorizedKeyFile)))
+			for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
+				if len(authorizedKeyBytes) == 0 {
+					continue
+				}
+				authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
+				if err != nil {
+					continue
+				}
+				if permissions.Extensions["pubkey-fp"] != ssh.FingerprintSHA256(authorizedKey) {
+					continue
+				}
+				upstreams = append(upstreams, filepath.Base(filepath.Dir(authorizedKeyFile)))
+			}
 		}
 		fmt.Fprint(rw, strings.Join(upstreams, " "))
 		fmt.Fprint(rw, "\r\n")

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -42,16 +43,21 @@ func UpstreamConfig(dataDir string) Command {
 			if err != nil {
 				return err
 			}
-			authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
-			if err != nil {
-				return err
+			for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
+				if len(authorizedKeyBytes) == 0 {
+					continue
+				}
+				authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
+				if err != nil {
+					continue
+				}
+				if permissions.Extensions["pubkey-fp"] != ssh.FingerprintSHA256(authorizedKey) {
+					continue
+				}
+				upstreamName := filepath.Base(filepath.Dir(authorizedKeyFile))
+				config := fmt.Sprintf(hostConfig, upstreamName)
+				configs = append(configs, config)
 			}
-			if permissions.Extensions["pubkey-fp"] != ssh.FingerprintSHA256(authorizedKey) {
-				continue
-			}
-			upstreamName := filepath.Base(filepath.Dir(authorizedKeyFile))
-			config := fmt.Sprintf(hostConfig, upstreamName)
-			configs = append(configs, config)
 		}
 		fmt.Fprint(rw, strings.Join(configs, "\n"))
 		fmt.Fprint(rw, "\r\n")
