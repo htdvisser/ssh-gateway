@@ -186,14 +186,25 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		return
 	}
 
+	returnErr := func(err error) {
+		go ssh.DiscardRequests(sshRequests)
+		select {
+		case newChannel := <-sshChannels:
+			newChannel.Reject(ssh.ConnectionFailed, err.Error())
+		case <-time.After(time.Second):
+		}
+	}
+
 	configBytes, err := ioutil.ReadFile(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "config.yml"))
 	if err != nil {
 		logger.Warn("Could not read upstream config", zap.Error(err))
+		returnErr(err)
 		return
 	}
 	var upstream upstreamConfig
 	if err = yaml.Unmarshal(configBytes, &upstream); err != nil {
 		logger.Warn("Could not unmarshal upstream config", zap.Error(err))
+		returnErr(err)
 		return
 	}
 	if upstream.Port == 0 {
@@ -206,6 +217,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		identityFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "id_*"))
 		if err != nil {
 			logger.Warn("Could not list upstream identity files", zap.Error(err))
+			returnErr(err)
 			return
 		}
 		for _, identityFile := range identityFiles {
@@ -233,7 +245,9 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	if hostKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "known_host*")); err == nil && len(hostKeyFiles) > 0 {
 		hostKeyCallback, err = knownhosts.New(hostKeyFiles...)
 		if err != nil {
-			logger.Error("Faild to load known hosts files", zap.Error(err))
+			logger.Error("Failed to load known hosts files", zap.Error(err))
+			returnErr(err)
+			return
 		}
 	} else {
 		logger.Warn("No known_hosts files, will generate...")
@@ -263,6 +277,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	})
 	if err != nil {
 		logger.Warn("Could not connect to upstream", zap.Error(err))
+		returnErr(err)
 		return
 	}
 	defer sshTarget.Close()
