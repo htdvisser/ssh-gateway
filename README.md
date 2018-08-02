@@ -56,3 +56,46 @@ port: 22 # (this is default)
 user: root # (this is default)
 password: hunter2 # (not recommended; use id_* files instead)
 ```
+
+## Advanced Functionality
+
+### Environment
+
+The SSH Gateway injects some environment variables into upstream sessions:
+
+```
+SSH_GATEWAY_USER_ADDR=ip:port
+SSH_GATEWAY_USER_PUBKEY_COMMENT=name@domain.tld
+SSH_GATEWAY_USER_PUBKEY_FINGERPRINT=SHA256:...
+SSH_GATEWAY_USER_PUBKEY_NAME=authorized_keys_name
+```
+
+To use these, you'll need to add `AcceptEnv SSH_GATEWAY_*` to `/etc/ssh/sshd_config` on your upstreams.
+
+### Commands
+
+#### `ssh -p 2222 root@localhost list`
+
+List the names of upstreams you can connect to:
+
+```
+foo bar
+```
+
+#### `ssh -p 2222 root@localhost config`
+
+Generate a config for upstreams you can connect to:
+
+```
+Host foo
+  HostName $SSH_HOST
+  Port $SSH_PORT
+  User foo
+
+Host bar
+  HostName $SSH_HOST
+  Port $SSH_PORT
+  User bar
+```
+
+If you have an `Include config.d/*` in your `.ssh/config`, you can update your list of networks by piping the output of the command into `sed -e 's/$SSH_HOST/localhost/g' -e 's/$SSH_PORT/2222/g' > ~/.ssh/config.d/ssh_gateway`
