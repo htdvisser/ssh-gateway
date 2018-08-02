@@ -107,6 +107,7 @@ func Run(c *cli.Context) error {
 	}
 
 	gtw.RegisterCommand("list", cmd.ListUpstreams(dataDir))
+	gtw.RegisterCommand("config", cmd.UpstreamConfig(dataDir))
 
 	var wg sync.WaitGroup
 	defer func() {
