@@ -7,6 +7,7 @@ import (
 	"io"
 	"sync"
 
+	"go.htdvisser.nl/ssh-gateway/pkg/encoding"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
@@ -97,6 +98,11 @@ func (c *channel) handle(ctx context.Context) {
 func (c *channel) forwardChannelRequests(ctx context.Context, target ssh.Channel, requests <-chan *ssh.Request) error {
 	defer target.Close()
 	for req := range requests {
+		if req.Type == "shell" || req.Type == "exec" {
+			for k, v := range EnvironmentFromContext(ctx) {
+				target.SendRequest("env", false, append(encoding.String(k), encoding.String(v)...))
+			}
+		}
 		ok, err := target.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
 			return err
