@@ -5,10 +5,10 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 
+	"go.htdvisser.nl/ssh-gateway/pkg/encoding"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
@@ -56,11 +56,11 @@ func (r Dispatcher) Dispatch(ctx context.Context, sshConn *ssh.ServerConn, sshCh
 				fmt.Fprint(channel, "No shell available.\r\n")
 				channel.Close()
 			case "env":
-				k, rest, ok := parseString(req.Payload)
+				k, rest, ok := encoding.ParseString(req.Payload)
 				if !ok {
 					continue
 				}
-				v, rest, ok := parseString(rest)
+				v, rest, ok := encoding.ParseString(rest)
 				if !ok {
 					continue
 				}
@@ -69,7 +69,7 @@ func (r Dispatcher) Dispatch(ctx context.Context, sshConn *ssh.ServerConn, sshCh
 					req.Reply(true, nil)
 				}
 			case "exec":
-				cmdBytes, rest, ok := parseString(req.Payload)
+				cmdBytes, rest, ok := encoding.ParseString(req.Payload)
 				if !ok {
 					continue
 				}
@@ -87,10 +87,10 @@ func (r Dispatcher) Dispatch(ctx context.Context, sshConn *ssh.ServerConn, sshCh
 				err := cmd(ctx, sshConn.Permissions, env, channel)
 				if err == nil {
 					logger.Info("Executed command")
-					channel.SendRequest("exit-status", false, u32(0))
+					channel.SendRequest("exit-status", false, encoding.Uint32(0))
 				} else {
 					logger.Warn("Executed command", zap.Error(err))
-					channel.SendRequest("exit-status", false, u32(1))
+					channel.SendRequest("exit-status", false, encoding.Uint32(1))
 				}
 				channel.Close()
 			default:
@@ -105,23 +105,4 @@ func (r Dispatcher) Dispatch(ctx context.Context, sshConn *ssh.ServerConn, sshCh
 		}
 	}
 	return nil
-}
-
-func u32(n uint32) []byte {
-	return []byte{byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n)}
-}
-
-func parseString(in []byte) (out, rest []byte, ok bool) {
-	if len(in) < 4 {
-		return
-	}
-	length := binary.BigEndian.Uint32(in)
-	in = in[4:]
-	if uint32(len(in)) < length {
-		return
-	}
-	out = in[:length]
-	rest = in[length:]
-	ok = true
-	return
 }
