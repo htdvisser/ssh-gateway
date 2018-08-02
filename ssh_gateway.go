@@ -288,6 +288,12 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	defer sshTarget.Close()
 
 	ctx := log.NewContext(gtw.ctx, logger)
+	ctx = forward.NewContextWithEnvironment(ctx, map[string]string{
+		"SSH_GATEWAY_USER_PUBKEY_NAME":        sshConn.Permissions.Extensions["pubkey-name"],
+		"SSH_GATEWAY_USER_PUBKEY_COMMENT":     sshConn.Permissions.Extensions["pubkey-comment"],
+		"SSH_GATEWAY_USER_PUBKEY_FINGERPRINT": sshConn.Permissions.Extensions["pubkey-fp"],
+		"SSH_GATEWAY_USER_ADDR":               sshConn.RemoteAddr().String(),
+	})
 
 	logger.Info("Start Forwarding")
 	go forward.Requests(ctx, sshTarget, sshRequests)
