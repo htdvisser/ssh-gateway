@@ -47,7 +47,7 @@ func NewGateway(ctx context.Context, dataDir string) *Gateway {
 	return &Gateway{
 		ctx:               ctx,
 		dataDir:           dataDir,
-		commandUser:       "root",
+		commandUser:       "gateway",
 		commandDispatcher: make(cmd.Dispatcher),
 	}
 }

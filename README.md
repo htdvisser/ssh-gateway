@@ -74,7 +74,7 @@ To use these, you'll need to add `AcceptEnv SSH_GATEWAY_*` to `/etc/ssh/sshd_con
 
 ### Commands
 
-#### `ssh -p 2222 root@localhost list`
+#### `ssh -p 2222 gateway@localhost list`
 
 List the names of upstreams you can connect to:
 
@@ -82,7 +82,7 @@ List the names of upstreams you can connect to:
 foo bar
 ```
 
-#### `ssh -p 2222 root@localhost config`
+#### `ssh -p 2222 gateway@localhost config`
 
 Generate a config for upstreams you can connect to:
 

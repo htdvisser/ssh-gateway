@@ -26,7 +26,7 @@ const hostConfig = `Host %[1]s
 //
 // in your ~/.ssh/config. Then you can update the SSH config as follows:
 //
-//     ssh -p 2222 root@localhost config | sed -e 's/$SSH_HOST/localhost/g' -e 's/$SSH_PORT/2222/g' > ~/.ssh/config.d/ssh_gateway
+//     ssh -p 2222 gateway@localhost config | sed -e 's/$SSH_HOST/localhost/g' -e 's/$SSH_PORT/2222/g' > ~/.ssh/config.d/ssh_gateway
 //
 // You should obviously replace the host "localhost" and port "2222" if that is
 // different in your deployment.
