@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -92,15 +93,25 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 	if !userRegexp.MatchString(c.User()) {
 		return nil, errors.New("invalid username")
 	}
+	info, err := os.Stat(filepath.Join(gtw.dataDir, "upstreams", c.User()))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errors.New("upstream not found")
+		}
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, errors.New("upstream not found")
+	}
 	authorizedKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", c.User(), "authorized_key*"))
 	if err != nil {
 		return nil, err
 	}
-	if len(authorizedKeyFiles) == 0 {
-		return nil, errors.New("no network matches username")
-	}
 	if alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "server", "authorized_key*")); err == nil {
 		authorizedKeyFiles = append(authorizedKeyFiles, alwaysAuthorizedKeyFiles...)
+	}
+	if len(authorizedKeyFiles) == 0 {
+		return nil, errors.New("no authorized keys found for upstream")
 	}
 	marshaledPubKey := pubKey.Marshal()
 	for _, authorizedKeyFile := range authorizedKeyFiles {
