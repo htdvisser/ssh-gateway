@@ -70,6 +70,8 @@ func init() {
 		cli.BoolFlag{Name: "debug", Usage: "Show debug logs", EnvVar: "DEBUG"},
 		cli.StringFlag{Name: "listen", Usage: "Listen address", EnvVar: "LISTEN", Value: ":2222"},
 		cli.StringFlag{Name: "data", Usage: "Data directory", EnvVar: "DATA", Value: "./data"},
+		cli.StringFlag{Name: "default-user", Usage: "Default username to use on upstream servers", EnvVar: "DEFAULT_USER"},
+		cli.StringFlag{Name: "command-user", Usage: "Username for command execution", EnvVar: "COMMAND_USER"},
 	}
 	app.Action = Run
 }
@@ -105,6 +107,14 @@ func Run(c *cli.Context) error {
 	if err != nil {
 		logger.Error("Could not load config", zap.Error(err))
 		return fmt.Errorf("Could not load config: %s", err)
+	}
+
+	if defaultUser := c.String("default-user"); defaultUser != "" {
+		gtw.SetDefaultUser(defaultUser)
+	}
+
+	if commandUser := c.String("command-user"); commandUser != "" {
+		gtw.SetDefaultUser(commandUser)
 	}
 
 	gtw.RegisterCommand("list", cmd.ListUpstreams(dataDir))

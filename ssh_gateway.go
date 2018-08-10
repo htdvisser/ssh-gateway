@@ -47,6 +47,7 @@ func NewGateway(ctx context.Context, dataDir string) *Gateway {
 	return &Gateway{
 		ctx:               ctx,
 		dataDir:           dataDir,
+		defaultUser:       "root",
 		commandUser:       "gateway",
 		commandDispatcher: make(cmd.Dispatcher),
 	}
@@ -54,13 +55,25 @@ func NewGateway(ctx context.Context, dataDir string) *Gateway {
 
 // Gateway implements an SSH Gateway.
 type Gateway struct {
-	ctx          context.Context
-	dataDir      string
-	cfg          *ssh.ServerConfig
+	ctx     context.Context
+	dataDir string
+	cfg     *ssh.ServerConfig
+
+	defaultUser  string
 	identityKeys []ssh.Signer
 
 	commandUser       string
 	commandDispatcher cmd.Dispatcher
+}
+
+// SetDefaultUser sets the default username to use on upstream servers (default is root).
+func (gtw *Gateway) SetDefaultUser(defaultUser string) {
+	gtw.defaultUser = defaultUser
+}
+
+// SetCommandUser sets the username for command execution (default is gateway).
+func (gtw *Gateway) SetCommandUser(commandUser string) {
+	gtw.commandUser = commandUser
 }
 
 // RegisterCommand registers a command to the SSH gateway.
@@ -218,7 +231,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		upstream.Port = 22
 	}
 	if upstream.User == "" {
-		upstream.User = "root"
+		upstream.User = gtw.defaultUser
 	}
 	if upstream.Password == "" {
 		identityFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "id_*"))
