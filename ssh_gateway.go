@@ -99,6 +99,9 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 	if len(authorizedKeyFiles) == 0 {
 		return nil, errors.New("no network matches username")
 	}
+	if alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "server", "authorized_key*")); err == nil {
+		authorizedKeyFiles = append(authorizedKeyFiles, alwaysAuthorizedKeyFiles...)
+	}
 	marshaledPubKey := pubKey.Marshal()
 	for _, authorizedKeyFile := range authorizedKeyFiles {
 		authorizedKeyBytes, err := ioutil.ReadFile(authorizedKeyFile)
