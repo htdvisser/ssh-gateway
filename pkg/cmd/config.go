@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 
+	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -32,32 +30,13 @@ const hostConfig = `Host %[1]s
 // different in your deployment.
 func UpstreamConfig(dataDir string) Command {
 	return func(ctx context.Context, permissions *ssh.Permissions, env map[string]string, rw io.ReadWriter) error {
-		var configs []string
-		glob := filepath.Join(dataDir, "upstreams", "*", "authorized_keys_*")
-		authorizedKeyFiles, err := filepath.Glob(glob)
+		upstreams, err := upstreams.List(dataDir, getPublicKey(permissions))
 		if err != nil {
 			return err
 		}
-		for _, authorizedKeyFile := range authorizedKeyFiles {
-			authorizedKeyBytes, err := ioutil.ReadFile(authorizedKeyFile)
-			if err != nil {
-				return err
-			}
-			for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
-				if len(authorizedKeyBytes) == 0 {
-					continue
-				}
-				authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
-				if err != nil {
-					continue
-				}
-				if permissions.Extensions["pubkey-fp"] != ssh.FingerprintSHA256(authorizedKey) {
-					continue
-				}
-				upstreamName := filepath.Base(filepath.Dir(authorizedKeyFile))
-				config := fmt.Sprintf(hostConfig, upstreamName)
-				configs = append(configs, config)
-			}
+		configs := make([]string, 0, len(upstreams))
+		for upstream := range upstreams {
+			configs = append(configs, fmt.Sprintf(hostConfig, upstream))
 		}
 		fmt.Fprint(rw, strings.Join(configs, "\n"))
 		fmt.Fprint(rw, "\r\n")

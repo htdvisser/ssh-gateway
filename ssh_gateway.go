@@ -2,8 +2,8 @@
 package ssh // import "go.htdvisser.nl/ssh-gateway"
 
 import (
-	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +16,7 @@ import (
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/forward"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
+	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -103,42 +104,26 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 	if !info.IsDir() {
 		return nil, errors.New("upstream not found")
 	}
-	authorizedKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", c.User(), "authorized_key*"))
-	if err != nil {
+
+	authorized, err := upstreams.AlwaysAuthorized(gtw.dataDir, pubKey)
+	if err != nil && err != upstreams.ErrNotAuthorized {
 		return nil, err
 	}
-	if alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "server", "authorized_key*")); err == nil {
-		authorizedKeyFiles = append(authorizedKeyFiles, alwaysAuthorizedKeyFiles...)
-	}
-	if len(authorizedKeyFiles) == 0 {
-		return nil, errors.New("no authorized keys found for upstream")
-	}
-	marshaledPubKey := pubKey.Marshal()
-	for _, authorizedKeyFile := range authorizedKeyFiles {
-		authorizedKeyBytes, err := ioutil.ReadFile(authorizedKeyFile)
-		if err != nil {
+	if authorized == nil {
+		authorized, err = upstreams.Authorized(gtw.dataDir, pubKey, c.User())
+		if err != nil && err != upstreams.ErrNotAuthorized {
 			return nil, err
 		}
-		for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
-			if len(authorizedKeyBytes) == 0 {
-				continue
-			}
-			authorizedKey, comment, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
-			if err != nil {
-				continue
-			}
-			if bytes.Equal(authorizedKey.Marshal(), marshaledPubKey) {
-				return &ssh.Permissions{
-					Extensions: map[string]string{
-						"pubkey-name":    filepath.Base(authorizedKeyFile),
-						"pubkey-comment": comment,
-						"pubkey-fp":      ssh.FingerprintSHA256(pubKey),
-					},
-				}, nil
-			}
-		}
 	}
-	return nil, errors.New("no match for pubKey")
+
+	return &ssh.Permissions{
+		Extensions: map[string]string{
+			"pubkey-name":    filepath.Base(authorized.Filename),
+			"pubkey-comment": authorized.Comment,
+			"pubkey":         base64.RawStdEncoding.EncodeToString(pubKey.Marshal()),
+			"pubkey-fp":      ssh.FingerprintSHA256(pubKey),
+		},
+	}, nil
 }
 
 // LoadConfig loads the configuration for the SSH Gateway.
