@@ -29,4 +29,4 @@ dev-deps:
 .PHONY: build
 
 build:
-	vgo build -ldflags "-X main.version=$(GIT_LAST_TAG) -X main.commit=$(GIT_COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) cmd/ssh-gateway/main.go
+	vgo build -ldflags "-X main.version=$(GIT_LAST_TAG) -X main.commit=$(GIT_COMMIT) -X main.compiled=$(DATE_TIME)" -o dist/ssh-gateway-$(shell go env GOOS)-$(shell go env GOARCH)$(shell go env GOEXE) ./cmd/ssh-gateway
