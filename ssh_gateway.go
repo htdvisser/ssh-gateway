@@ -71,7 +71,8 @@ func (gtw *Gateway) RegisterCommand(name string, cmd cmd.Command) {
 var userRegexp = regexp.MustCompile("^[a-z0-9._-]+$")
 
 func (gtw *Gateway) bannerCallback(c ssh.ConnMetadata) string {
-	return fmt.Sprintf("You are connecting as %s from %s...\n", c.User(), c.RemoteAddr())
+	remoteIP, _, _ := net.SplitHostPort(c.RemoteAddr().String())
+	return fmt.Sprintf("You are connecting as %s from %s...\n", c.User(), remoteIP)
 }
 
 func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) (*ssh.Permissions, error) {
@@ -165,7 +166,8 @@ func (gtw *Gateway) LoadConfig() error {
 
 // Handle handles a new connection.
 func (gtw *Gateway) Handle(conn net.Conn) {
-	logger := log.FromContext(gtw.ctx)
+	remoteIP, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	logger := log.FromContext(gtw.ctx).With(zap.String("remote_ip", remoteIP))
 
 	defer conn.Close()
 	sshConn, sshChannels, sshRequests, err := ssh.NewServerConn(conn, gtw.cfg)
@@ -292,7 +294,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		"SSH_GATEWAY_USER_PUBKEY_NAME":        sshConn.Permissions.Extensions["pubkey-name"],
 		"SSH_GATEWAY_USER_PUBKEY_COMMENT":     sshConn.Permissions.Extensions["pubkey-comment"],
 		"SSH_GATEWAY_USER_PUBKEY_FINGERPRINT": sshConn.Permissions.Extensions["pubkey-fp"],
-		"SSH_GATEWAY_USER_ADDR":               sshConn.RemoteAddr().String(),
+		"SSH_GATEWAY_USER_IP":                 remoteIP,
 	})
 
 	logger.Info("Start Forwarding")
