@@ -116,6 +116,10 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 		}
 	}
 
+	if authorized == nil {
+		return nil, errors.New("not authorized")
+	}
+
 	return &ssh.Permissions{
 		Extensions: map[string]string{
 			"pubkey-name":    filepath.Base(authorized.Filename),
