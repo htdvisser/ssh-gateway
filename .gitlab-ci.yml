@@ -1,28 +1,35 @@
-image: golang:1.10
+image: golang:1.11rc2
 
 variables:
   DOCKER_IMAGE: registry.gitlab.com/htdvisser/ssh-gateway
 
+cache:
+  paths:
+  - .go/pkg/mod
+
+before_script:
+- export GOPATH=$(realpath .)/.go
+- if [[ ! -d $GOPATH ]]; then mkdir -p $GOPATH; fi
+- export PATH="$PATH:$GOPATH/bin"
+- export GOTMPDIR=$GOPATH/tmp
+- if [[ ! -d $GOTMPDIR ]]; then mkdir -p $GOTMPDIR; fi
+
 stages:
+- test
 - build
 - release
 
+test:
+  stage: test
+  script:
+  - go test -cover -race -coverprofile=coverage.txt -covermode=atomic ./...
+  - go fmt ./...
+
 build:
   stage: build
-  cache:
-    paths:
-    - .go/src/v
-    - .go/tmp
   artifacts:
     paths:
     - dist
-  before_script:
-  - export GOPATH=$(realpath .)/.go
-  - if [[ ! -d $GOPATH ]]; then mkdir -p $GOPATH; fi
-  - export PATH="$PATH:$GOPATH/bin"
-  - export GOTMPDIR=$GOPATH/tmp
-  - if [[ ! -d $GOTMPDIR ]]; then mkdir -p $GOTMPDIR; fi
-  - make dev-deps
   script:
   - if [[ ! -d dist ]]; then mkdir dist; fi
   - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make build
@@ -32,6 +39,7 @@ build:
 docker:
   stage: release
   image: docker:git
+  cache: { paths: [] }
   services:
   - docker:dind
   before_script:
@@ -40,4 +48,3 @@ docker:
   - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
   - docker build -t $DOCKER_IMAGE:$DOCKER_BRANCH .
   - docker push $DOCKER_IMAGE:$DOCKER_BRANCH
-
