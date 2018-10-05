@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -26,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli"
 	"go.htdvisser.nl/ssh-gateway"
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
@@ -69,6 +72,7 @@ func init() {
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{Name: "debug", Usage: "Show debug logs", EnvVar: "DEBUG"},
 		cli.StringFlag{Name: "listen", Usage: "Listen address", EnvVar: "LISTEN", Value: ":2222"},
+		cli.StringFlag{Name: "listen-http", Usage: "Listen address for HTTP endpoints", EnvVar: "LISTEN_HTTP", Value: "localhost:12222"},
 		cli.StringFlag{Name: "data", Usage: "Data directory", EnvVar: "DATA", Value: "./data"},
 		cli.StringFlag{Name: "default-user", Usage: "Default username to use on upstream servers", EnvVar: "DEFAULT_USER"},
 		cli.StringFlag{Name: "command-user", Usage: "Username for command execution", EnvVar: "COMMAND_USER"},
@@ -137,10 +141,11 @@ func Run(c *cli.Context) error {
 		}
 	}()
 
+	http.Handle("/metrics", promhttp.Handler())
 	lis, err := net.Listen("tcp", c.String("listen"))
 	if err != nil {
-		logger.Error("Could not listen", zap.Error(err))
-		return fmt.Errorf("Could not listen: %s", err)
+		logger.Error("Could not listen for SSH", zap.Error(err))
+		return fmt.Errorf("Could not listen for SSH: %s", err)
 	}
 	defer lis.Close()
 	logger.Info("Start accepting connections", zap.String("address", lis.Addr().String()))
@@ -160,6 +165,14 @@ func Run(c *cli.Context) error {
 			}()
 		}
 	}()
+
+	httpLis, err := net.Listen("tcp", c.String("listen-http"))
+	if err != nil {
+		logger.Error("Could not listen for HTTP", zap.Error(err))
+		return fmt.Errorf("Could not listen for HTTP: %s", err)
+	}
+	defer httpLis.Close()
+	go http.Serve(httpLis, nil)
 
 	for {
 		select {

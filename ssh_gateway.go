@@ -16,6 +16,7 @@ import (
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/forward"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
+	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
 	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
@@ -304,6 +305,9 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		return
 	}
 	defer sshTarget.Close()
+
+	metrics.RegisterStartForward(sshConn.Permissions.Extensions["pubkey-name"], sshConn.User())
+	defer metrics.RegisterEndForward(sshConn.Permissions.Extensions["pubkey-name"], sshConn.User())
 
 	ctx := log.NewContext(gtw.ctx, logger)
 	ctx = forward.NewContextWithEnvironment(ctx, map[string]string{
