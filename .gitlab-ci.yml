@@ -1,4 +1,4 @@
-image: golang:1.11rc2
+image: golang:1.11
 
 variables:
   DOCKER_IMAGE: registry.gitlab.com/htdvisser/ssh-gateway
