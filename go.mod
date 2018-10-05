@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/client_golang v0.9.0-pre1.0.20181001174001-0a8115f42e03
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910 // indirect
 	github.com/prometheus/common v0.0.0-20180801064454-c7de2306084e // indirect
-	github.com/prometheus/procfs v0.0.0-20181004131639-6bfc2c70c4ee // indirect
+	github.com/prometheus/procfs v0.0.0-20180920065004-418d78d0b9a7 // indirect
 	github.com/stretchr/testify v1.2.2 // indirect
 	github.com/urfave/cli v1.20.0
 	go.uber.org/atomic v1.3.2 // indirect
