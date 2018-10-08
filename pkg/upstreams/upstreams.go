@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -108,4 +109,43 @@ func List(dataDir string, publicKey ssh.PublicKey) (map[string]*Authorization, e
 	}
 
 	return upstreams, nil
+}
+
+// All returns the names of all upstreams.
+func All(dataDir string) ([]string, error) {
+	upstreamConfigs, err := filepath.Glob(filepath.Join(dataDir, "upstreams", "*", "config.yml"))
+	if err != nil {
+		return nil, err
+	}
+	all := make([]string, len(upstreamConfigs))
+	for i, config := range upstreamConfigs {
+		all[i] = filepath.Base(filepath.Dir(config))
+	}
+	sort.Strings(all)
+	return all, nil
+}
+
+// ListAuthorized returns the authorized key names for the given upstream.
+func ListAuthorized(dataDir, upstream string) ([]string, error) {
+	authorized := make(map[string]struct{})
+	alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "server", "authorized_keys_*"))
+	if err != nil {
+		return nil, err
+	}
+	for _, authorizedKeyFile := range alwaysAuthorizedKeyFiles {
+		authorized[filepath.Base(authorizedKeyFile)] = struct{}{}
+	}
+	authorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "upstreams", upstream, "authorized_keys_*"))
+	if err != nil {
+		return nil, err
+	}
+	for _, authorizedKeyFile := range authorizedKeyFiles {
+		authorized[filepath.Base(authorizedKeyFile)] = struct{}{}
+	}
+	list := make([]string, 0, len(authorized))
+	for authorized := range authorized {
+		list = append(list, authorized)
+	}
+	sort.Strings(list)
+	return list, nil
 }

@@ -36,3 +36,9 @@ func RegisterStartForward(pubKey, upstream string) {
 func RegisterEndForward(pubKey, upstream string) {
 	connectionsEnded.WithLabelValues(pubKey, upstream).Inc()
 }
+
+// InitForward initializes the SSH forwarding metrics for a given pubKey and upstream.
+func InitForward(pubKey, upstream string) {
+	connectionsStarted.WithLabelValues(pubKey, upstream).Add(0)
+	connectionsEnded.WithLabelValues(pubKey, upstream).Add(0)
+}
