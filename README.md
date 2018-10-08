@@ -31,7 +31,6 @@ Example `data` folder structure:
 data
 ├── server
 │   ├── authorized_keys_charlie -> ../../users/authorized_keys_charlie
-│   ├── ssh_host_dsa_key.pub
 │   ├── ssh_host_dsa_key
 │   ├── ssh_host_dsa_key.pub
 │   ├── ...
