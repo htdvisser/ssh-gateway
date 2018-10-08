@@ -16,7 +16,9 @@ Release builds can be downloaded from the [tag builds](https://gitlab.com/htdvis
 
 The `data` folder (location can be changed with the `DATA` environment variable) contains the configuration of the SSH gateway.
 
-- `server` contains SSH host keys for the server. You can use `make host_keys` to generate them.
+- `server` contains global configuration:
+  - `ssh_*` files contain SSH host keys for the server. You can use `make host_keys` to generate them.
+  - `authorized_keys_*` files can be used to give public keys of users that can access **all** servers
 - `upstreams/foo` contains configuration for the `foo` upstream server:
   - `authorized_keys_*` files can be used to give public keys of users that can access that server
   - `config.yml` contains host/port/user config (see below)
@@ -28,6 +30,8 @@ Example `data` folder structure:
 ```
 data
 ├── server
+│   ├── authorized_keys_charlie -> ../../users/authorized_keys_charlie
+│   ├── ssh_host_dsa_key.pub
 │   ├── ssh_host_dsa_key
 │   ├── ssh_host_dsa_key.pub
 │   ├── ...
@@ -45,7 +49,8 @@ data
 │       └── known_host_keys
 └── users
     ├── authorized_keys_alice
-    └── authorized_keys_bob
+    ├── authorized_keys_bob
+    └── authorized_keys_charlie
 ```
 
 Example upstream `config.yml`:
