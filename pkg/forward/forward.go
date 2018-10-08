@@ -81,12 +81,12 @@ func (c *channel) handle(ctx context.Context) {
 	}()
 	go func() {
 		defer wg.Done()
-		defer c.targetChannel.CloseWrite()
+		defer c.targetChannel.CloseWrite()        // Only close the write, we may still expect a response.
 		io.Copy(c.targetChannel, c.sourceChannel) // nolint:gas
 	}()
 	go func() {
 		defer wg.Done()
-		defer c.sourceChannel.CloseWrite()
+		defer c.sourceChannel.Close()
 		io.Copy(c.sourceChannel, c.targetChannel) // nolint:gas
 	}()
 	wg.Wait()
