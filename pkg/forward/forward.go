@@ -31,7 +31,6 @@ func Requests(ctx context.Context, target *ssh.Client, requests <-chan *ssh.Requ
 }
 
 func forwardClientRequests(ctx context.Context, target *ssh.Client, requests <-chan *ssh.Request) error {
-	defer target.Close()
 	for req := range requests {
 		ok, payload, err := target.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
@@ -94,7 +93,6 @@ func (c *channel) handle(ctx context.Context) {
 }
 
 func (c *channel) forwardChannelRequests(ctx context.Context, target ssh.Channel, requests <-chan *ssh.Request) error {
-	defer target.Close()
 	for req := range requests {
 		if req.Type == "shell" || req.Type == "exec" {
 			for k, v := range EnvironmentFromContext(ctx) {
