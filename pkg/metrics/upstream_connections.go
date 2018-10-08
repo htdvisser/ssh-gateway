@@ -3,8 +3,8 @@ package metrics
 import "github.com/prometheus/client_golang/prometheus"
 
 var (
-	connectionsStarted = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
+	connectionsStarted = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
 			Namespace: "ssh",
 			Subsystem: "upstream",
 			Name:      "connections_started_total",
@@ -12,8 +12,8 @@ var (
 		},
 		[]string{"pubkey", "upstream"},
 	)
-	connectionsEnded = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
+	connectionsEnded = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
 			Namespace: "ssh",
 			Subsystem: "upstream",
 			Name:      "connections_ended_total",
