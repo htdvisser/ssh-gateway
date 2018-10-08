@@ -35,6 +35,7 @@ func init() {
 func RegisterStartForward(pubKey, upstream string) {
 	pubKey = strings.TrimPrefix(pubKey, "authorized_keys_")
 	connectionsStarted.WithLabelValues(pubKey, upstream).Inc()
+	connectionsEnded.WithLabelValues(pubKey, upstream).Add(0)
 }
 
 // RegisterEndForward registers the end of an SSH forwarding connection.
