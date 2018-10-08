@@ -126,6 +126,7 @@ func Channels(ctx context.Context, target *ssh.Client, channels <-chan ssh.NewCh
 
 func forwardChannels(ctx context.Context, target *ssh.Client, channels <-chan ssh.NewChannel) error {
 	logger := log.FromContext(ctx)
+	var wg sync.WaitGroup
 	for newChannel := range channels {
 		if ctx.Err() != nil {
 			if err := newChannel.Reject(ssh.Prohibited, ctx.Err().Error()); err != nil {
@@ -151,7 +152,12 @@ func forwardChannels(ctx context.Context, target *ssh.Client, channels <-chan ss
 			targetChannel:  targetChannel,
 			targetRequests: targetRequests,
 		}
-		go channel.handle(log.NewContext(ctx, logger.With(zap.String("type", newChannel.ChannelType()))))
+		wg.Add(1)
+		go func(newChannel ssh.NewChannel) {
+			channel.handle(log.NewContext(ctx, logger.With(zap.String("type", newChannel.ChannelType()))))
+			wg.Done()
+		}(newChannel)
 	}
+	wg.Wait()
 	return nil
 }
