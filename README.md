@@ -74,6 +74,8 @@ To use these, you'll need to add `AcceptEnv SSH_GATEWAY_*` to `/etc/ssh/sshd_con
 
 ### Commands
 
+Users can execute special commands on the SSH gateway if they have access to the special "command user" (default: `gateway`, modify with `--command-user` or `$COMMAND_USER`). Don't forget to authorize their keys to the "command user" upstream (by default `./data/upstreams/gateway/`).
+
 #### `ssh -p 2222 gateway@localhost list`
 
 List the names of upstreams you can connect to:
