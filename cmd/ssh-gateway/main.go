@@ -121,6 +121,7 @@ func Run(c *cli.Context) error {
 		return fmt.Errorf("Could not load upstreams: %s", err)
 	}
 	for _, upstream := range allUpstreams {
+		metrics.InitUpstream(upstream)
 		allAuthorized, err := upstreams.ListAuthorized(dataDir, upstream)
 		if err != nil {
 			logger.Error("Could not load authorized keys for upstream", zap.String("upstream", upstream), zap.Error(err))

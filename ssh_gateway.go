@@ -292,18 +292,25 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		zap.String("upstream_user", upstream.User),
 		zap.String("upstream_addr", addr),
 	)
-	sshTarget, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{
+	config := &ssh.ClientConfig{
 		User:            upstream.User,
 		Auth:            upstream.AuthMethods(),
 		HostKeyCallback: hostKeyCallback,
 		ClientVersion:   "SSH-2.0-" + Name,
 		Timeout:         5 * time.Second,
-	})
-	if err != nil {
-		logger.Warn("Could not connect to upstream", zap.Error(err))
-		returnErr(err)
-		return
 	}
+	upstreamConn, err := net.DialTimeout("tcp", addr, config.Timeout)
+	if err != nil {
+		logger.Warn("Could not dial to upstream", zap.Error(err))
+		returnErr(err)
+	}
+	upstreamConn = metrics.NewMeteredConn(upstreamConn, sshConn.User())
+	upstreamSSHConn, chans, reqs, err := ssh.NewClientConn(upstreamConn, addr, config)
+	if err != nil {
+		logger.Warn("Could not set up SSH client connection to upstream", zap.Error(err))
+		returnErr(err)
+	}
+	sshTarget := ssh.NewClient(upstreamSSHConn, chans, reqs)
 	defer sshTarget.Close()
 
 	metrics.RegisterStartForward(sshConn.Permissions.Extensions["pubkey-name"], sshConn.User())
