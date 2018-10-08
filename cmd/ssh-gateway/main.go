@@ -32,9 +32,9 @@ import (
 	"github.com/urfave/cli"
 	"go.htdvisser.nl/ssh-gateway"
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
-	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
-	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
+	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
+	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -125,7 +125,7 @@ func Run(c *cli.Context) error {
 		allAuthorized, err := upstreams.ListAuthorized(dataDir, upstream)
 		if err != nil {
 			logger.Error("Could not load authorized keys for upstream", zap.String("upstream", upstream), zap.Error(err))
-			return fmt.Errorf("Could not load authorized keys for upstream %s: %s",upstream, err)
+			return fmt.Errorf("Could not load authorized keys for upstream %s: %s", upstream, err)
 		}
 		for _, authorized := range allAuthorized {
 			metrics.InitForward(authorized, upstream)
