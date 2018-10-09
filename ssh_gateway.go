@@ -303,12 +303,14 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	if err != nil {
 		logger.Warn("Could not dial to upstream", zap.Error(err))
 		returnErr(err)
+		return
 	}
 	upstreamConn = metrics.NewMeteredConn(upstreamConn, sshConn.User())
 	upstreamSSHConn, chans, reqs, err := ssh.NewClientConn(upstreamConn, addr, config)
 	if err != nil {
 		logger.Warn("Could not set up SSH client connection to upstream", zap.Error(err))
 		returnErr(err)
+		return
 	}
 	sshTarget := ssh.NewClient(upstreamSSHConn, chans, reqs)
 	defer sshTarget.Close()
