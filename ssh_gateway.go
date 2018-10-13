@@ -181,10 +181,15 @@ func (gtw *Gateway) LoadConfig() error {
 	return nil
 }
 
+var keepAliveDuration = time.Minute
+
 // Handle handles a new connection.
 func (gtw *Gateway) Handle(conn net.Conn) {
+	ctx, cancel := context.WithCancel(gtw.ctx)
+	defer cancel()
+
 	remoteIP, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-	logger := log.FromContext(gtw.ctx).With(zap.String("remote_ip", remoteIP))
+	logger := log.FromContext(ctx).With(zap.String("remote_ip", remoteIP))
 
 	defer conn.Close()
 	sshConn, sshChannels, sshRequests, err := ssh.NewServerConn(conn, gtw.cfg)
@@ -199,11 +204,30 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		zap.String("pubkey", sshConn.Permissions.Extensions["pubkey-name"]),
 	)
 
+	ctx = log.NewContext(ctx, logger)
+
 	logger.Info("Accept SSH conn", zap.String("pubkey-comment", sshConn.Permissions.Extensions["pubkey-comment"]))
 	defer logger.Info("Close SSH conn")
 
+	clientKeepAlive := time.NewTicker(keepAliveDuration)
+	defer clientKeepAlive.Stop()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-clientKeepAlive.C:
+				_, _, err := sshConn.SendRequest("keepalive@ssh-gateway", true, nil)
+				if err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
 	if sshConn.User() == gtw.commandUser && len(gtw.commandDispatcher) > 0 {
-		err = gtw.commandDispatcher.Dispatch(log.NewContext(gtw.ctx, logger), sshConn, sshChannels, sshRequests)
+		err = gtw.commandDispatcher.Dispatch(log.NewContext(ctx, logger), sshConn, sshChannels, sshRequests)
 		if err != nil {
 			logger.Warn("Could not execute command", zap.Error(err))
 		}
@@ -315,10 +339,26 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	sshTarget := ssh.NewClient(upstreamSSHConn, chans, reqs)
 	defer sshTarget.Close()
 
+	upstreamKeepAlive := time.NewTicker(keepAliveDuration)
+	defer upstreamKeepAlive.Stop()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-upstreamKeepAlive.C:
+				_, _, err := sshTarget.SendRequest("keepalive@ssh-gateway", true, nil)
+				if err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
 	metrics.RegisterStartForward(sshConn.Permissions.Extensions["pubkey-name"], sshConn.User())
 	defer metrics.RegisterEndForward(sshConn.Permissions.Extensions["pubkey-name"], sshConn.User())
 
-	ctx := log.NewContext(gtw.ctx, logger)
 	ctx = forward.NewContextWithEnvironment(ctx, map[string]string{
 		"SSH_GATEWAY_USER_PUBKEY_NAME":        sshConn.Permissions.Extensions["pubkey-name"],
 		"SSH_GATEWAY_USER_PUBKEY_COMMENT":     sshConn.Permissions.Extensions["pubkey-comment"],
@@ -328,5 +368,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 
 	logger.Info("Start Forwarding")
 	go forward.Requests(ctx, sshTarget, sshRequests)
-	forward.Channels(ctx, sshTarget, sshChannels)
+	go forward.Channels(ctx, sshTarget, sshChannels)
+	
+	<-ctx.Done()
 }
