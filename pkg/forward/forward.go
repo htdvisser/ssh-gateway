@@ -60,15 +60,6 @@ func (c *channel) handle(ctx context.Context) {
 	logger.Debug("Accept channel")
 	defer logger.Debug("Close channel")
 
-	innerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go func() {
-		<-innerCtx.Done()
-		if ctx.Err() != nil {
-			logger.Warn("Channel is still active")
-		}
-	}()
-
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {
