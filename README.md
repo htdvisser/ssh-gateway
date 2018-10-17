@@ -17,7 +17,7 @@ Release builds can be downloaded from the [tag builds](https://gitlab.com/htdvis
 The `data` folder (location can be changed with the `DATA` environment variable) contains the configuration of the SSH gateway.
 
 - `server` contains global configuration:
-  - `ssh_*` files contain SSH host keys for the server. You can use `make host_keys` to generate them.
+  - `ssh_host_*` files contain SSH host keys for the server. You can use `make host_keys` to generate them.
   - `authorized_keys_*` files can be used to give public keys of users that can access **all** servers
 - `upstreams/foo` contains configuration for the `foo` upstream server:
   - `authorized_keys_*` files can be used to give public keys of users that can access that server
