@@ -367,8 +367,14 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	})
 
 	logger.Info("Start Forwarding")
-	go forward.Requests(ctx, sshTarget, sshRequests)
-	go forward.Channels(ctx, sshTarget, sshChannels)
+	go func() {
+		forward.Requests(ctx, sshTarget, sshRequests)
+		cancel()
+	}()
+	go func() {
+		forward.Channels(ctx, sshTarget, sshChannels)
+		cancel()
+	}()
 	
 	<-ctx.Done()
 }
