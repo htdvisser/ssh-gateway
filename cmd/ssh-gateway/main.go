@@ -34,6 +34,7 @@ import (
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
+	"go.htdvisser.nl/ssh-gateway/pkg/slack"
 	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -78,6 +79,7 @@ func init() {
 		cli.StringFlag{Name: "data", Usage: "Data directory", EnvVar: "DATA", Value: "./data"},
 		cli.StringFlag{Name: "default-user", Usage: "Default username to use on upstream servers", EnvVar: "DEFAULT_USER"},
 		cli.StringFlag{Name: "command-user", Usage: "Username for command execution", EnvVar: "COMMAND_USER"},
+		cli.StringFlag{Name: "slack-url", Usage: "URL for Slack notifications", EnvVar: "SLACK_URL"},
 	}
 	app.Action = Run
 }
@@ -142,6 +144,12 @@ func Run(c *cli.Context) error {
 
 	gtw.RegisterCommand("list", cmd.ListUpstreams(dataDir))
 	gtw.RegisterCommand("config", cmd.UpstreamConfig(dataDir))
+
+	if slackURL := c.String("slack-url"); slackURL != "" {
+		gtw.SetSlackNotifier(&slack.Notifier{
+			URL: slackURL,
+		})
+	}
 
 	var wg sync.WaitGroup
 	defer func() {

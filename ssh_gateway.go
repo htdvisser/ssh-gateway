@@ -11,12 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/forward"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
+	"go.htdvisser.nl/ssh-gateway/pkg/slack"
 	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
@@ -67,6 +69,8 @@ type Gateway struct {
 
 	commandUser       string
 	commandDispatcher cmd.Dispatcher
+
+	slackNotifier *slack.Notifier
 }
 
 // SetDefaultUser sets the default username to use on upstream servers (default is root).
@@ -82,6 +86,10 @@ func (gtw *Gateway) SetCommandUser(commandUser string) {
 // RegisterCommand registers a command to the SSH gateway.
 func (gtw *Gateway) RegisterCommand(name string, cmd cmd.Command) {
 	gtw.commandDispatcher[name] = cmd
+}
+
+func (gtw *Gateway) SetSlackNotifier(slackNotifier *slack.Notifier) {
+	gtw.slackNotifier = slackNotifier
 }
 
 var userRegexp = regexp.MustCompile("^[a-z0-9._-]+$")
@@ -208,6 +216,12 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 
 	logger.Info("Accept SSH conn", zap.String("pubkey-comment", sshConn.Permissions.Extensions["pubkey-comment"]))
 	defer logger.Info("Close SSH conn")
+
+	gtw.slackNotifier.NotifyConnect(
+		strings.TrimPrefix(sshConn.Permissions.Extensions["pubkey-name"], "authorized_keys_"),
+		remoteIP,
+		sshConn.User(),
+	)
 
 	clientKeepAlive := time.NewTicker(keepAliveDuration)
 	defer clientKeepAlive.Stop()
