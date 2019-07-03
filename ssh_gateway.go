@@ -16,6 +16,7 @@ import (
 
 	"go.htdvisser.nl/ssh-gateway/pkg/cmd"
 	"go.htdvisser.nl/ssh-gateway/pkg/forward"
+	"go.htdvisser.nl/ssh-gateway/pkg/geoip"
 	"go.htdvisser.nl/ssh-gateway/pkg/log"
 	"go.htdvisser.nl/ssh-gateway/pkg/metrics"
 	"go.htdvisser.nl/ssh-gateway/pkg/slack"
@@ -49,13 +50,19 @@ func (c upstreamConfig) AuthMethods() (methods []ssh.AuthMethod) {
 
 // NewGateway instantiates a new SSH Gateway.
 func NewGateway(ctx context.Context, dataDir string) *Gateway {
-	return &Gateway{
+	gtw := &Gateway{
 		ctx:               ctx,
 		dataDir:           dataDir,
 		defaultUser:       "root",
 		commandUser:       "gateway",
 		commandDispatcher: make(cmd.Dispatcher),
 	}
+	if db, err := geoip.Open(filepath.Join(dataDir, "GeoIP2-City.mmdb")); err == nil {
+		gtw.geoIPDB = db
+	} else if db, err := geoip.Open(filepath.Join(dataDir, "GeoLite2-City.mmdb")); err == nil {
+		gtw.geoIPDB = db
+	}
+	return gtw
 }
 
 // Gateway implements an SSH Gateway.
@@ -71,6 +78,8 @@ type Gateway struct {
 	commandDispatcher cmd.Dispatcher
 
 	slackNotifier *slack.Notifier
+
+	geoIPDB *geoip.DB
 }
 
 // SetDefaultUser sets the default username to use on upstream servers (default is root).
@@ -199,6 +208,14 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	remoteIP, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	logger := log.FromContext(ctx).With(zap.String("remote_ip", remoteIP))
 
+	var remoteIPDesc string
+	if gtw.geoIPDB != nil {
+		if remoteIPCity, err := gtw.geoIPDB.City(remoteIP); err == nil {
+			logger = logger.With(zap.String("remote_ip_desc", remoteIPCity))
+			remoteIPDesc = remoteIPCity
+		}
+	}
+
 	defer conn.Close()
 	sshConn, sshChannels, sshRequests, err := ssh.NewServerConn(conn, gtw.cfg)
 	if err != nil {
@@ -220,6 +237,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	gtw.slackNotifier.NotifyConnect(
 		strings.TrimPrefix(sshConn.Permissions.Extensions["pubkey-name"], "authorized_keys_"),
 		remoteIP,
+		remoteIPDesc,
 		sshConn.User(),
 	)
 
@@ -389,6 +407,6 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		forward.Channels(ctx, sshTarget, sshChannels)
 		cancel()
 	}()
-	
+
 	<-ctx.Done()
 }

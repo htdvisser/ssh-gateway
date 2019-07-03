@@ -25,7 +25,7 @@ type Notifier struct {
 	nextNotification *time.Timer
 }
 
-var defaultTemplate = template.Must(template.New("default").Parse("{{ range .Events }}`{{ .User }}` connected to `{{ .Upstream }}` from `{{ .RemoteIP }}`\n{{ end }}"))
+var defaultTemplate = template.Must(template.New("default").Parse("{{ range .Events }}`{{ .User }}` connected to `{{ .Upstream }}` from `{{ .RemoteIP }}`{{ with .RemoteIPDesc }} ({{ . }}){{ end }}\n{{ end }}"))
 
 func (n *Notifier) buildMessage(data messageData) (*message, error) {
 	msg := message{
@@ -46,9 +46,10 @@ func (n *Notifier) buildMessage(data messageData) (*message, error) {
 }
 
 type eventData struct {
-	User     string
-	RemoteIP string
-	Upstream string
+	User         string
+	RemoteIP     string
+	RemoteIPDesc string
+	Upstream     string
 }
 
 type messageData struct {
@@ -96,16 +97,17 @@ func (n *Notifier) flush(events []eventData) error {
 	return nil
 }
 
-func (n *Notifier) NotifyConnect(user, remoteIP, upstream string) error {
+func (n *Notifier) NotifyConnect(user, remoteIP, remoteIPDesc, upstream string) error {
 	if n == nil || n.URL == "" {
 		return nil
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.nextEvents = append(n.nextEvents, eventData{
-		User:     user,
-		RemoteIP: remoteIP,
-		Upstream: upstream,
+		User:         user,
+		RemoteIP:     remoteIP,
+		RemoteIPDesc: remoteIPDesc,
+		Upstream:     upstream,
 	})
 	debounce := n.Debounce
 	if debounce == 0 {
