@@ -29,8 +29,11 @@ func (db *DB) City(ipStr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if record.City.GeoNameID == 0 {
+	if record.Country.GeoNameID == 0 {
 		return "", ErrNotFound
+	}
+	if record.City.GeoNameID == 0 {
+		return record.Country.Names["en"], nil
 	}
 	return fmt.Sprintf("%s, %s", record.City.Names["en"], record.Country.Names["en"]), nil
 }
