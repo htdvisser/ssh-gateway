@@ -50,6 +50,7 @@ func (c upstreamConfig) AuthMethods() (methods []ssh.AuthMethod) {
 
 // NewGateway instantiates a new SSH Gateway.
 func NewGateway(ctx context.Context, dataDir string) *Gateway {
+	logger := log.FromContext(ctx)
 	gtw := &Gateway{
 		ctx:               ctx,
 		dataDir:           dataDir,
@@ -59,8 +60,10 @@ func NewGateway(ctx context.Context, dataDir string) *Gateway {
 	}
 	if db, err := geoip.Open(filepath.Join(dataDir, "GeoIP2-City.mmdb")); err == nil {
 		gtw.geoIPDB = db
+		logger.Info("Loaded GeoIP City database")
 	} else if db, err := geoip.Open(filepath.Join(dataDir, "GeoLite2-City.mmdb")); err == nil {
 		gtw.geoIPDB = db
+		logger.Info("Loaded GeoLite City database")
 	}
 	return gtw
 }
