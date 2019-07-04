@@ -65,6 +65,11 @@ func NewGateway(ctx context.Context, dataDir string) *Gateway {
 		gtw.geoIPDB = db
 		logger.Info("Loaded GeoLite City database")
 	}
+	if err := gtw.geoIPDB.AddASN(filepath.Join(dataDir, "GeoIP2-ASN.mmdb")); err == nil {
+		logger.Info("Loaded GeoIP ASN database")
+	} else if err := gtw.geoIPDB.AddASN(filepath.Join(dataDir, "GeoLite2-ASN.mmdb")); err == nil {
+		logger.Info("Loaded GeoLite ASN database")
+	}
 	return gtw
 }
 
@@ -211,12 +216,9 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 	remoteIP, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	logger := log.FromContext(ctx).With(zap.String("remote_ip", remoteIP))
 
-	var remoteIPDesc string
-	if gtw.geoIPDB != nil {
-		if remoteIPCity, err := gtw.geoIPDB.City(remoteIP); err == nil {
-			logger = logger.With(zap.String("remote_ip_desc", remoteIPCity))
-			remoteIPDesc = remoteIPCity
-		}
+	remoteIPDesc, _ := gtw.geoIPDB.Info(remoteIP)
+	if remoteIPDesc != "" {
+		logger = logger.With(zap.String("remote_ip_desc", remoteIPDesc))
 	}
 
 	defer conn.Close()
