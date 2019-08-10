@@ -139,7 +139,7 @@ func Run(c *cli.Context) error {
 	}
 
 	if commandUser := c.String("command-user"); commandUser != "" {
-		gtw.SetDefaultUser(commandUser)
+		gtw.SetCommandUser(commandUser)
 	}
 
 	gtw.RegisterCommand("list", cmd.ListUpstreams(dataDir))
