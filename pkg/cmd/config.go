@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
@@ -54,8 +55,13 @@ func UpstreamConfig(dataDir string) Command {
 		if err != nil {
 			return err
 		}
-		configs := make([]string, 0, len(upstreams))
+		upstreamNames := make([]string, 0, len(upstreams))
 		for upstream := range upstreams {
+			upstreamNames = append(upstreamNames, upstream)
+		}
+		sort.Strings(upstreamNames)
+		configs := make([]string, 0, len(upstreams))
+		for _, upstream := range upstreamNames {
 			configs = append(configs, fmt.Sprintf(hostConfig, upstream, sshHost, sshPort))
 		}
 		fmt.Fprint(rw, strings.Join(configs, "\n"))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"go.htdvisser.nl/ssh-gateway/pkg/upstreams"
@@ -21,6 +22,7 @@ func ListUpstreams(dataDir string) Command {
 		for upstream := range upstreams {
 			upstreamNames = append(upstreamNames, upstream)
 		}
+		sort.Strings(upstreamNames)
 		fmt.Fprint(rw, strings.Join(upstreamNames, " "))
 		fmt.Fprint(rw, "\r\n")
 		return nil
