@@ -1,18 +1,9 @@
-image: golang:1.11
+image: golang:1.13
 
 variables:
   DOCKER_IMAGE: registry.gitlab.com/htdvisser/ssh-gateway
-
-cache:
-  paths:
-  - .go/pkg/mod
-
-before_script:
-- export GOPATH=$(realpath .)/.go
-- if [[ ! -d $GOPATH ]]; then mkdir -p $GOPATH; fi
-- export PATH="$PATH:$GOPATH/bin"
-- export GOTMPDIR=$GOPATH/tmp
-- if [[ ! -d $GOTMPDIR ]]; then mkdir -p $GOTMPDIR; fi
+  GOPROXY: https://proxy.golang.org
+  GO111MODULLE: 'on'
 
 stages:
 - test
@@ -39,7 +30,6 @@ build:
 docker:
   stage: release
   image: docker:git
-  cache: { paths: [] }
   services:
   - docker:dind
   before_script:
