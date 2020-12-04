@@ -34,6 +34,9 @@ type upstreamConfig struct {
 	Host        string       `yaml:"host"`
 	Port        uint         `yaml:"port"`
 	User        string       `yaml:"user"`
+	JumpHost    string       `yaml:"jump_host"`
+	JumpPort    uint         `yaml:"jump_port"`
+	JumpUser    string       `yaml:"jump_user"`
 	Password    string       `yaml:"password"`
 	PrivateKeys []ssh.Signer `yaml:"-"`
 }
@@ -346,28 +349,78 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		}
 	}
 
-	addr := fmt.Sprintf("%s:%d", upstream.Host, upstream.Port)
+	upstreamAddr := fmt.Sprintf("%s:%d", upstream.Host, upstream.Port)
+	var upstreamConn net.Conn
 
-	logger.Info(
-		"Connect to upstream",
-		zap.String("upstream_user", upstream.User),
-		zap.String("upstream_addr", addr),
-	)
-	config := &ssh.ClientConfig{
+	if upstream.JumpHost != "" {
+		if upstream.JumpPort == 0 {
+			upstream.JumpPort = 22
+		}
+		if upstream.JumpUser == "" {
+			upstream.JumpUser = gtw.defaultUser
+		}
+
+		jumpAddr := fmt.Sprintf("%s:%d", upstream.JumpHost, upstream.JumpPort)
+		logger.Info(
+			"Connect to jump host",
+			zap.String("jump_user", upstream.JumpUser),
+			zap.String("jump_addr", jumpAddr),
+		)
+		jumpConn, err := net.DialTimeout("tcp", jumpAddr, 5*time.Second)
+		if err != nil {
+			logger.Warn("Could not dial to jump host", zap.Error(err))
+			returnErr(err)
+			return
+		}
+		jumpConn = metrics.NewMeteredConn(jumpConn, sshConn.User())
+		jumpSSHConn, chans, reqs, err := ssh.NewClientConn(jumpConn, jumpAddr, &ssh.ClientConfig{
+			User:            upstream.JumpUser,
+			Auth:            upstream.AuthMethods(),
+			HostKeyCallback: hostKeyCallback,
+			ClientVersion:   "SSH-2.0-" + Name,
+			Timeout:         5 * time.Second,
+		})
+		if err != nil {
+			logger.Warn("Could not set up SSH client connection to jump host", zap.Error(err))
+			returnErr(err)
+			return
+		}
+		sshJump := ssh.NewClient(jumpSSHConn, chans, reqs)
+		defer sshJump.Close()
+
+		logger.Info(
+			"Connect from jump host to upstream",
+			zap.String("upstream_user", upstream.User),
+			zap.String("upstream_addr", upstreamAddr),
+		)
+		upstreamConn, err = sshJump.Dial("tcp", upstreamAddr)
+		if err != nil {
+			logger.Warn("Could not dial from jump host to upstream", zap.Error(err))
+			returnErr(err)
+			return
+		}
+	} else {
+		logger.Info(
+			"Connect to upstream",
+			zap.String("upstream_user", upstream.User),
+			zap.String("upstream_addr", upstreamAddr),
+		)
+		upstreamConn, err = net.DialTimeout("tcp", upstreamAddr, 5*time.Second)
+		if err != nil {
+			logger.Warn("Could not dial to upstream", zap.Error(err))
+			returnErr(err)
+			return
+		}
+	}
+
+	upstreamConn = metrics.NewMeteredConn(upstreamConn, sshConn.User())
+	upstreamSSHConn, chans, reqs, err := ssh.NewClientConn(upstreamConn, upstreamAddr, &ssh.ClientConfig{
 		User:            upstream.User,
 		Auth:            upstream.AuthMethods(),
 		HostKeyCallback: hostKeyCallback,
 		ClientVersion:   "SSH-2.0-" + Name,
 		Timeout:         5 * time.Second,
-	}
-	upstreamConn, err := net.DialTimeout("tcp", addr, config.Timeout)
-	if err != nil {
-		logger.Warn("Could not dial to upstream", zap.Error(err))
-		returnErr(err)
-		return
-	}
-	upstreamConn = metrics.NewMeteredConn(upstreamConn, sshConn.User())
-	upstreamSSHConn, chans, reqs, err := ssh.NewClientConn(upstreamConn, addr, config)
+	})
 	if err != nil {
 		logger.Warn("Could not set up SSH client connection to upstream", zap.Error(err))
 		returnErr(err)
