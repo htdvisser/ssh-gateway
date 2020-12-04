@@ -4,17 +4,19 @@ go 1.13
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/oschwald/geoip2-golang v1.4.0
-	github.com/prometheus/client_golang v1.4.1
-	github.com/prometheus/procfs v0.0.10 // indirect
-	github.com/urfave/cli v1.22.2
-	go.uber.org/atomic v1.5.1 // indirect
-	go.uber.org/multierr v1.4.0 // indirect
-	go.uber.org/zap v1.14.0
-	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/lint v0.0.0-20200130185559-910be7a94367 // indirect
-	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
-	golang.org/x/tools v0.0.0-20200220155224-947cbf191135 // indirect
-	gopkg.in/yaml.v2 v2.2.8
+	github.com/oschwald/maxminddb-golang v1.8.0 // indirect
+	github.com/prometheus/client_golang v1.8.0
+	github.com/prometheus/common v0.15.0 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/urfave/cli v1.22.5
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.16.0
+	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
+	golang.org/x/sys v0.0.0-20201202213521-69691e467435 // indirect
+	golang.org/x/tools v0.0.0-20201204062850-545788942d5f // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0
+	honnef.co/go/tools v0.0.1-2020.1.6 // indirect
 )

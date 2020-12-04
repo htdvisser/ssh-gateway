@@ -57,7 +57,7 @@ func init() {
 	logConfig.Encoding = "console"
 	logConfig.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	logConfig.EncoderConfig.EncodeTime = nil
+	logConfig.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	logConfig.OutputPaths = []string{"stdout"}
 
 	app.Name = "ssh-gateway"
