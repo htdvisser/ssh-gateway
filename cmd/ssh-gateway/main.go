@@ -85,7 +85,9 @@ func init() {
 }
 
 func main() {
-	app.Run(os.Args) // nolint:gas
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
 
 // Run the SSH Gateway
@@ -96,7 +98,11 @@ func Run(c *cli.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger, _ = logConfig.Build() // nolint:gas
+	var err error
+	logger, err = logConfig.Build()
+	if err != nil {
+		return err
+	}
 	if c.Bool("debug") {
 		logConfig.Level.SetLevel(zapcore.DebugLevel)
 		logger.Debug("Debug logging active")
@@ -106,7 +112,7 @@ func Run(c *cli.Context) error {
 	dataDir, err := filepath.Abs(c.String("data"))
 	if err != nil {
 		logger.Error("Could not find data dir", zap.Error(err))
-		return fmt.Errorf("Could not find data dir: %s", err)
+		return fmt.Errorf("Could not find data dir: %w", err)
 	}
 
 	gtw := ssh.NewGateway(ctx, dataDir)
@@ -114,13 +120,13 @@ func Run(c *cli.Context) error {
 	err = gtw.LoadConfig()
 	if err != nil {
 		logger.Error("Could not load config", zap.Error(err))
-		return fmt.Errorf("Could not load config: %s", err)
+		return fmt.Errorf("Could not load config: %w", err)
 	}
 
 	allUpstreams, err := upstreams.All(dataDir)
 	if err != nil {
 		logger.Error("Could not load upstreams", zap.Error(err))
-		return fmt.Errorf("Could not load upstreams: %s", err)
+		return fmt.Errorf("Could not load upstreams: %w", err)
 	}
 	for _, upstream := range allUpstreams {
 		metrics.InitUpstream(upstream)
@@ -172,7 +178,7 @@ func Run(c *cli.Context) error {
 	lis, err := net.Listen("tcp", c.String("listen"))
 	if err != nil {
 		logger.Error("Could not listen for SSH", zap.Error(err))
-		return fmt.Errorf("Could not listen for SSH: %s", err)
+		return fmt.Errorf("Could not listen for SSH: %w", err)
 	}
 	defer lis.Close()
 	logger.Info("Start accepting connections", zap.String("address", lis.Addr().String()))
@@ -197,7 +203,7 @@ func Run(c *cli.Context) error {
 	httpLis, err := net.Listen("tcp", c.String("listen-http"))
 	if err != nil {
 		logger.Error("Could not listen for HTTP", zap.Error(err))
-		return fmt.Errorf("Could not listen for HTTP: %s", err)
+		return fmt.Errorf("Could not listen for HTTP: %w", err)
 	}
 	defer httpLis.Close()
 	go http.Serve(httpLis, nil)

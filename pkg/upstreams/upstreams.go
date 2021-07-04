@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 
@@ -16,11 +17,11 @@ type Authorization struct {
 	Comment string
 }
 
-func matchingAuthorizedKeyFiles(publicKey ssh.PublicKey, authorizedKeyFiles ...string) (matches []Authorization) {
+func matchingAuthorizedKeyFiles(publicKey ssh.PublicKey, authorizedKeyFiles ...string) (matches []Authorization, err error) {
 	for _, authorizedKeyFile := range authorizedKeyFiles {
 		authorizedKeyBytes, err := ioutil.ReadFile(authorizedKeyFile)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		for _, authorizedKeyBytes := range bytes.Split(authorizedKeyBytes, []byte("\n")) {
 			if len(authorizedKeyBytes) == 0 {
@@ -28,7 +29,7 @@ func matchingAuthorizedKeyFiles(publicKey ssh.PublicKey, authorizedKeyFiles ...s
 			}
 			authorizedKey, comment, _, _, err := ssh.ParseAuthorizedKey(authorizedKeyBytes)
 			if err != nil {
-				continue
+				return nil, err
 			}
 			if !bytes.Equal(publicKey.Marshal(), authorizedKey.Marshal()) {
 				continue
@@ -43,6 +44,27 @@ func matchingAuthorizedKeyFiles(publicKey ssh.PublicKey, authorizedKeyFiles ...s
 	return
 }
 
+func filesInDir(dir string, match string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var results []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		matched, err := filepath.Match(match, entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			results = append(results, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return results, nil
+}
+
 // ErrNotAuthorized means that the public key is not authorized.
 var ErrNotAuthorized = errors.New("not authorized")
 
@@ -52,11 +74,14 @@ func Authorized(dataDir string, publicKey ssh.PublicKey, upstream string) (*Auth
 		return nil, ErrNotAuthorized
 	}
 
-	authorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "upstreams", upstream, "authorized_keys_*"))
+	authorizedKeyFiles, err := filesInDir(filepath.Join(dataDir, "upstreams", upstream), "authorized_keys_*")
 	if err != nil {
 		return nil, err
 	}
-	matches := matchingAuthorizedKeyFiles(publicKey, authorizedKeyFiles...)
+	matches, err := matchingAuthorizedKeyFiles(publicKey, authorizedKeyFiles...)
+	if err != nil {
+		return nil, err
+	}
 	if len(matches) > 0 {
 		return &matches[0], nil
 	}
@@ -69,15 +94,32 @@ func AlwaysAuthorized(dataDir string, publicKey ssh.PublicKey) (*Authorization, 
 		return nil, ErrNotAuthorized
 	}
 
-	alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "server", "authorized_keys_*"))
+	alwaysAuthorizedKeyFiles, err := filesInDir(filepath.Join(dataDir, "server"), "authorized_keys_*")
 	if err != nil {
 		return nil, err
 	}
-	matches := matchingAuthorizedKeyFiles(publicKey, alwaysAuthorizedKeyFiles...)
+	matches, err := matchingAuthorizedKeyFiles(publicKey, alwaysAuthorizedKeyFiles...)
+	if err != nil {
+		return nil, err
+	}
 	if len(matches) > 0 {
 		return &matches[0], nil
 	}
 	return nil, ErrNotAuthorized
+}
+
+func dirsInDir(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var results []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			results = append(results, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return results, nil
 }
 
 // List upstreams that are accessible with the given public key.
@@ -87,14 +129,14 @@ func List(dataDir string, publicKey ssh.PublicKey) (map[string]*Authorization, e
 		return nil, err
 	}
 
-	upstreamConfigs, err := filepath.Glob(filepath.Join(dataDir, "upstreams", "*", "config.yml"))
+	upstreamDirs, err := dirsInDir(filepath.Join(dataDir, "upstreams"))
 	if err != nil {
 		return nil, err
 	}
 
-	var upstreams = make(map[string]*Authorization, len(upstreamConfigs))
-	for _, upstreamConfig := range upstreamConfigs {
-		upstream := filepath.Base(filepath.Dir(upstreamConfig))
+	upstreams := make(map[string]*Authorization, len(upstreamDirs))
+	for _, upstreamDir := range upstreamDirs {
+		upstream := filepath.Base(upstreamDir)
 		if alwaysAuthorized != nil {
 			upstreams[upstream] = alwaysAuthorized
 			continue
@@ -113,13 +155,13 @@ func List(dataDir string, publicKey ssh.PublicKey) (map[string]*Authorization, e
 
 // All returns the names of all upstreams.
 func All(dataDir string) ([]string, error) {
-	upstreamConfigs, err := filepath.Glob(filepath.Join(dataDir, "upstreams", "*", "config.yml"))
+	upstreamDirs, err := dirsInDir(filepath.Join(dataDir, "upstreams"))
 	if err != nil {
 		return nil, err
 	}
-	all := make([]string, len(upstreamConfigs))
-	for i, config := range upstreamConfigs {
-		all[i] = filepath.Base(filepath.Dir(config))
+	all := make([]string, len(upstreamDirs))
+	for i, upstreamDir := range upstreamDirs {
+		all[i] = filepath.Base(upstreamDir)
 	}
 	sort.Strings(all)
 	return all, nil
@@ -128,14 +170,14 @@ func All(dataDir string) ([]string, error) {
 // ListAuthorized returns the authorized key names for the given upstream.
 func ListAuthorized(dataDir, upstream string) ([]string, error) {
 	authorized := make(map[string]struct{})
-	alwaysAuthorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "server", "authorized_keys_*"))
+	alwaysAuthorizedKeyFiles, err := filesInDir(filepath.Join(dataDir, "server"), "authorized_keys_*")
 	if err != nil {
 		return nil, err
 	}
 	for _, authorizedKeyFile := range alwaysAuthorizedKeyFiles {
 		authorized[filepath.Base(authorizedKeyFile)] = struct{}{}
 	}
-	authorizedKeyFiles, err := filepath.Glob(filepath.Join(dataDir, "upstreams", upstream, "authorized_keys_*"))
+	authorizedKeyFiles, err := filesInDir(filepath.Join(dataDir, "upstreams", upstream), "authorized_keys_*")
 	if err != nil {
 		return nil, err
 	}

@@ -159,6 +159,27 @@ func (gtw *Gateway) publicKeyCallback(c ssh.ConnMetadata, pubKey ssh.PublicKey) 
 	}, nil
 }
 
+func filesInDir(dir string, match string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var results []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		matched, err := filepath.Match(match, entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			results = append(results, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return results, nil
+}
+
 // LoadConfig loads the configuration for the SSH Gateway.
 func (gtw *Gateway) LoadConfig() error {
 	logger := log.FromContext(gtw.ctx)
@@ -167,7 +188,8 @@ func (gtw *Gateway) LoadConfig() error {
 		ServerVersion:     "SSH-2.0-" + Name,
 		BannerCallback:    gtw.bannerCallback,
 	}
-	identityFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "server", "id_*"))
+
+	identityFiles, err := filesInDir(filepath.Join(gtw.dataDir, "server"), "id_*")
 	if err != nil {
 		return err
 	}
@@ -186,7 +208,7 @@ func (gtw *Gateway) LoadConfig() error {
 		logger.Debug("Add server identity", zap.String("file", identityFile))
 		gtw.identityKeys = append(gtw.identityKeys, identityKey)
 	}
-	hostKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "server", "ssh_host_*"))
+	hostKeyFiles, err := filesInDir(filepath.Join(gtw.dataDir, "server"), "ssh_host_*")
 	if err != nil {
 		return err
 	}
@@ -302,7 +324,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		upstream.User = gtw.defaultUser
 	}
 	if upstream.Password == "" {
-		identityFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "id_*"))
+		identityFiles, err := filesInDir(filepath.Join(gtw.dataDir, "upstreams", sshConn.User()), "id_*")
 		if err != nil {
 			logger.Warn("Could not list upstream identity files", zap.Error(err))
 			returnErr(err)
@@ -330,7 +352,7 @@ func (gtw *Gateway) Handle(conn net.Conn) {
 		}
 	}
 	var hostKeyCallback ssh.HostKeyCallback
-	if hostKeyFiles, err := filepath.Glob(filepath.Join(gtw.dataDir, "upstreams", sshConn.User(), "known_host*")); err == nil && len(hostKeyFiles) > 0 {
+	if hostKeyFiles, err := filesInDir(filepath.Join(gtw.dataDir, "upstreams", sshConn.User()), "known_host*"); err == nil && len(hostKeyFiles) > 0 {
 		hostKeyCallback, err = knownhosts.New(hostKeyFiles...)
 		if err != nil {
 			logger.Error("Failed to load known hosts files", zap.Error(err))
