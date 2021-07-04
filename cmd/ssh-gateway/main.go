@@ -184,6 +184,7 @@ func Run(c *cli.Context) error {
 					return
 				}
 				logger.Error("Could not accept client", zap.Error(err))
+				continue
 			}
 			wg.Add(1)
 			go func() {
